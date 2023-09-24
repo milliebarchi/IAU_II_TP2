@@ -42,13 +42,13 @@ departamentos_de_interes <- c("Almirante Brown", "Avellaneda", "Berazategui", "B
                               "General Las Heras", "General Rodríguez", "General San Martín", "Hurlingham", "Ituzaingó",
                               "José C. Paz", "La Matanza", "La Plata", "Lanús", "Lomas de Zamora", "Luján",
                               "Malvinas Argentinas", "Marcos Paz", "Merlo", "Moreno", "Morón", "Quilmes", "Pilar",
-                              "Presidente Perón", "San Fernando", "San Isidro", "San Miguel", "San Vicente", "Tigre",
+                              "Presidente Perón", "San Isidro", "San Miguel", "San Vicente", "Tigre",
                               "Tres de Febrero", "Vicente López", "Zárate", "Comuna 1", "Comuna 2", "Comuna 3", "Comuna 4", "Comuna 5",
                               "Comuna 6", "Comuna 7", "Comuna 8", "Comuna 9", "Comuna 10", "Comuna 11", "Comuna 12", "Comuna 13",
                               "Comuna 14", "Comuna 15")
 
 columnas_de_interes <- c("departamento", "nombre_barrio", "cantidad_viviendas_aproximadas", 
-                         "cantidad_familias_aproximada")
+                         "cantidad_familias_aproximada", "energia_electrica", "efluentes_cloacales", "agua_corriente")
 
 renabap_2022_amba <- renabap_2022 %>%
   filter(departamento %in% departamentos_de_interes)%>%
@@ -58,7 +58,7 @@ summary(renabap_2022_amba)
 
 # En el TP1, con estas primeras operaciones se pudo responder la primera pregunta (¿cuántos barrios populares se encuentran en el Área Metropolitana de Buenos Aires y, en promedio, cuántas viviendas y familias contienen?).
 
-# Se observaron 1821 barrios populares existentes en el AMBA, que en promedio cuentan con 314 viviendas y 345 familias. 
+# Se observaron 1618 barrios populares existentes en el AMBA, que en promedio cuentan con 317 viviendas y 371 familias. 
 
 
 #5. Agrupar y contar información
@@ -90,7 +90,7 @@ ggplot(barrios_por_departamentos) +
 
 # En síntesis, se agrupan los datos por el valor de la columna "departamento". Luego, se cuenta la cantidad de barrios populares en cada uno. Finalmente, se ordenan los resultados de manera descendente, para así poder extraer el top 10 de departamentos con mayor cantidad de BP. 
 
-# A partir de este análisis, se constata que los departamentos con mayor cantidad de BP son San Fernando, La Matanza, La Plata, Moreno, Almirante Brown, Merlo, Florencio Varela, Quilmes, Tigre y Lomas de Zamora.
+# A partir de este análisis, se constata que los departamentos con mayor cantidad de BP son La Matanza, La Plata, Moreno, Almirante Brown, Merlo, Florencio Varela, Quilmes, Tigre, Lomas de Zamora y Pilar.
 
 # No obstante, si retomamos la información de cantidad de viviendas y familias, podremos observar que los departamentos con mayor cantidad de barrios no coinciden necesariamente con los que presentan mayor cantidad de viviendas:
 
@@ -142,7 +142,6 @@ grilla_amba <- data.frame(
 
 geofacet::grid_preview(grilla_amba)
 
-
 #6. Visualizar la información en mapas
 # A continuación, se instalan unas librerías adicionales para ayudar a la visualización de la información.
 
@@ -189,8 +188,34 @@ base_amba <- datos_combinados_amba %>%
 ggplot()+ 
   geom_sf(data=base_amba)
   
-base_amba <- base_amba %>%
-  rename(departamento = nomdepto_censo)
+
+# Por otro lado, cargamos la base georreferenciada del RENABAP 2022, para poder observar la distribución espacial de los asentamientos:
+
+renabap_espacial <- st_read(
+  "datos/2022-07-13_info_publica.gpkg"
+  , stringsAsFactors =
+    TRUE
+  , options =
+    "ENCODING=UTF-8"
+)
+
+renabap_espacial_amba <- renabap_espacial %>%
+  filter(departamento %in% departamentos_de_interes)%>%
+  select(all_of(columnas_de_interes))
+
+renabap_espacial_amba<- st_filter(renabap_espacial_amba, base_amba)
+
+ggplot()+ geom_sf(data=base_amba, fill = "#f3f6f4" )+ geom_sf(data=renabap_espacial_amba, color = "#B22222", alpha=
+                                             0.75
+                                           , show.legend =
+                                             FALSE
+)+
+  labs(
+    title = "Barrios Populares en el AMBA",
+    subtitle = "Área Metropolitana de Buenos Aires",
+    caption = "Fuente: RENABAP 2022"
+  ) +
+  theme_minimal()
 
 # Para proceder a la visualización espacial de la información previamente estudiada, se transforman los datos de la columna "departamento" a fin de unirla con la base espacial del AMBA.
 
@@ -202,7 +227,7 @@ union_tablas_para_visualizacion <- left_join(base_amba, viviendas_y_familias_por
 
 # Por último, se procede a visualizar los siguientes mapas:
 
-# 1. Cantidad de barrios por departamento: 
+# 6.1. Cantidad de barrios por departamento: 
 ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=cantidad_barrios), color=
                     "white"
 )+ labs(title =
@@ -220,7 +245,7 @@ ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=cantidad_barrio
 ) + theme_minimal()
 
 
-# 2. Cantidad de viviendas por departamento: 
+# 6.2. Cantidad de viviendas por departamento: 
 ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_viviendas), color=
                     "white"
 )+ labs(title =
@@ -238,7 +263,7 @@ ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_viviendas
 ) + theme_minimal()
 
 
-# 3. Cantidad de barrios por departamento: 
+# 6.3. Cantidad de familias por departamento: 
 ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_familias), color=
                     "white"
 )+ labs(title =
@@ -255,4 +280,93 @@ ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_familias)
                            1
 ) + theme_minimal()
 
-# En primer lugar, estos mapas permiten observar que no hay un patrón uniforme en la distribución de barrios, hogares y familias, pero sí se puede observar menores valores en CABA, con excepción al sur de la ciudad. Por otro lado, los mapas permiten observar que hay 8 departamentos que no cuentan con BP (los polígonos grises), a saber: Ezeiza, General Las Heras, y dentro de CABA, las Comunas 3, 5, 10, 11, 12 y 13.
+# En primer lugar, estos mapas permiten observar que no hay un patrón uniforme en la distribución de barrios, hogares y familias, pero sí se puede observar menores valores en CABA, con excepción al sur de la ciudad. Por otro lado, los mapas permiten observar que hay 9 departamentos que no cuentan con BP o que no se han relevado sus datos (los polígonos grises), a saber: San Fernando, Ezeiza, General Las Heras, y dentro de CABA, las Comunas 3, 5, 10, 11, 12 y 13.
+
+
+# Resulta de interés contrastar esto con los niveles de cobertura de energía eléctrica, efluentes cloacales, y agua corriente. Para ello, primero se filtran los valores que no corresponden a conexiones formales/regulares, y luego se calcula el porcentaje de ausencia de cobertura por departamento.
+
+filtro_energia <- c("No tiene conexión eléctrica", "Conexión irregular a la red")
+filtro_efluentes <- c("Conexión irregular a la red cloacal", "Desagüe sólo a pozo negro/ciego u hoyo", "Desagüe a cámara séptica y pozo ciego","Desagüe a intemperie o cuerpo de agua")
+filtro_agua <- c("Acarreo de baldes/recipientes desde fuera del barrio", "Bomba de agua de pozo comunitaria", "Bomba de agua de pozo domiciliaria", "Camión cisterna", "Canilla comunitaria dentro del barrio", "Conexión irregular a la red de agua")
+
+
+porcentaje_sin_cobertura_energia <- renabap_2022_amba %>%
+  filter(energia_electrica %in% filtro_energia) %>%
+  group_by(departamento) %>%
+  summarise(porcentaje_sin_cobertura_energia = round((n() / nrow(renabap_2022_amba)) * 100, 2))
+
+porcentaje_sin_cobertura_efluentes <- renabap_2022_amba %>%
+  filter(efluentes_cloacales %in% filtro_efluentes) %>%
+  group_by(departamento) %>%
+  summarise(porcentaje_sin_cobertura_efluentes = round((n() / nrow(renabap_2022_amba)) * 100, 2))
+
+porcentaje_sin_cobertura_agua <- renabap_2022_amba %>%
+  filter(agua_corriente %in% filtro_agua) %>%
+  group_by(departamento) %>%
+  summarise(porcentaje_sin_cobertura_agua = round((n() / nrow(renabap_2022_amba)) * 100, 2))
+
+porcentaje_sin_cobertura <- left_join(porcentaje_sin_cobertura_energia, porcentaje_sin_cobertura_efluentes, by = "departamento") %>%
+  left_join(porcentaje_sin_cobertura_agua, by = "departamento")
+
+porcentaje_sin_cobertura <- porcentaje_sin_cobertura %>%
+  mutate(departamento = toupper(chartr("ÁÉÍÓÚÑáéíóúñ", "AEIOUNaeioun", departamento)))
+
+union_tablas_para_visualizacion_servicios <- left_join(base_amba, porcentaje_sin_cobertura, by = "departamento")
+
+# 6.4. Porcentaje de barrios sin servicio de efluentes cloacales:
+ggplot()+ geom_sf(data=union_tablas_para_visualizacion_servicios, aes(fill=porcentaje_sin_cobertura_efluentes), color=
+                    "white"
+)+ labs(title =
+          "Porcentaje de barrios sin cobertura de efluentes cloacales"
+        , subtitle =
+          "Área Metropolitana de Buenos Aires"
+        , fill =
+          "Porcentaje sin cobertura"
+        , caption=
+          "Fuente: RENABAP 2022"
+) + scale_fill_distiller(palette =
+                           "Reds"
+                         , direction =
+                           1
+) + theme_minimal()
+
+
+# 6.5. Porcentaje de barrios sin servicio de energía eléctrica:
+ggplot()+ geom_sf(data=union_tablas_para_visualizacion_servicios, aes(fill=porcentaje_sin_cobertura_energia), color=
+                    "white"
+)+ labs(title =
+          "Porcentaje de barrios sin cobertura de energía eléctrica"
+        , subtitle =
+          "Área Metropolitana de Buenos Aires"
+        , fill =
+          "Porcentaje sin cobertura"
+        , caption=
+          "Fuente: RENABAP 2022"
+) + scale_fill_distiller(palette =
+                           "Reds"
+                         , direction =
+                           1
+) + theme_minimal()
+
+# 6.6. Porcentaje de barrios sin servicio de agua corriente:
+ggplot()+ geom_sf(data=union_tablas_para_visualizacion_servicios, aes(fill=porcentaje_sin_cobertura_agua), color=
+                    "white"
+)+ labs(title =
+          "Porcentaje de barrios sin cobertura de agua corriente"
+        , subtitle =
+          "Área Metropolitana de Buenos Aires"
+        , fill =
+          "Porcentaje sin cobertura"
+        , caption=
+          "Fuente: RENABAP 2022"
+) + scale_fill_distiller(palette =
+                           "Reds"
+                         , direction =
+                           1
+) + theme_minimal()
+
+# Estos mapas permiten identificar que hay un mayor déficit en el acceso al agua corriente. Por otro lado, se puede observar que La Plata es el departamento que cuenta con el mayor porcentaje de ausencia de cobertura de los tres servicios, seguido por La Matanza y Moreno.
+
+# Para concluir, el hecho de que los mapas se vean similares entre sí sugiere que se correlacionan los mayores niveles de densidad de barrios, hogares y familias con los mayores porcentajes de ausencia de cobertura de servicios. Para profundizar y complementar el análisis, se podría estudiar la relación con métodos estadísticos.
+
+
