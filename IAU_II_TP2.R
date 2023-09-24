@@ -1,7 +1,7 @@
 #Trabajo Práctico 2
 
 #1. Preparación espacio de trabajo
-#Para dar inicio al TP, se instalan los packages y librerías necesarias para operar sobre los datos
+#Para dar inicio al TP2, se instalan los packages y librerías necesarias para operar sobre los datos.
 
 #Tidyverse
 install.packages("tidyverse")
@@ -11,12 +11,18 @@ library(tidyverse)
 install.packages("dplyr")
 library(dplyr)
 
+#Ggplot
+install.packages("ggplot2")
+library(ggplot2)
+
+#Esquisse
+install.packages("esquisse")
+esquisse::esquisser()
 
 #2. Carga de datos
 # En segunda instancia, se procede a importar la base de datos del Relevamiento Nacional de Barrios Populares 2022.
 
 renabap_2022 <- read.csv ("datos/2022-07-13_info_publica.csv")
-
 
 #3. Análisis preliminar de la base de datos
 # Antes de comenzar a trabajar con la información provista por el .csv, se realiza un análisis exploratorio de los datos.
@@ -25,9 +31,7 @@ dim(renabap_2022)
 # El .csv contiene 5687 filas y 77 columnas.
 
 names(renabap_2022)
-# Aquí se puede observar en mayor detalle el contenido de las columnas. De manera preliminar, se definen como variables de interés: departamento, nombre_barrio, cantidad_viviendas_aproximadas, y cantidad_familias_aproximadas.
-
-# A partir de esta selección, se definen las siguientes preguntas a responder: ¿Cuántos barrios populares (BP) se encuentran en el Área Metropolitana de Buenos Aires y, en promedio, cuántas viviendas y familias contienen? ¿Cuáles son los 10 departamentos con mayor cantidad de barrios populares? ¿Cuál es el departamento con mayor cantidad de viviendas y familias? ¿Cuál es el barrio popular con mayor cantidad de viviendas y familias y dónde se encuentra?
+# Aquí se puede observar en mayor detalle el contenido de las 77 columnas. De manera preliminar, se definen como variables de interés: departamento, nombre_barrio, cantidad_viviendas_aproximadas, y cantidad_familias_aproximadas.
 
 
 #4. Filtro y selección de datos
@@ -50,13 +54,13 @@ renabap_2022_amba <- renabap_2022 %>%
 
 summary(renabap_2022_amba)
 
-# Con estas primeras operaciones se puede responder la primera pregunta (¿cuántos barrios populares se encuentran en el Área Metropolitana de Buenos Aires y, en promedio, cuántas viviendas y familias contienen?).
+# En el TP1, con estas primeras operaciones se pudo responder la primera pregunta (¿cuántos barrios populares se encuentran en el Área Metropolitana de Buenos Aires y, en promedio, cuántas viviendas y familias contienen?).
 
-# Se observan 1771 barrios populares existentes en el AMBA, que en promedio cuentan con 281 viviendas y 309 familias. 
+# Se observaron 1771 barrios populares existentes en el AMBA, que en promedio cuentan con 280 viviendas y 309 familias. 
 
 
 #5. Agrupar y contar información
-# Para poder proseguir con las siguientes preguntas, se realizan las siguientes operaciones:
+# Para poder proseguir con las siguientes preguntas y su visualización, se realizan las siguientes operaciones:
 
 barrios_por_departamentos <- renabap_2022_amba %>%
   group_by(departamento) %>%
@@ -65,34 +69,196 @@ barrios_por_departamentos <- renabap_2022_amba %>%
 
 top_10_departamentos <- head(barrios_por_departamentos, 10)
 
+# En el siguiente gráfico de barras se puede visualizar la cantidad de barrios por departamento, y los 10 departamentos con mayor cantidad.
+
+ggplot(barrios_por_departamentos) +
+  aes(x = reorder(departamento, cantidad_barrios), y = cantidad_barrios) +
+  geom_col(fill = ifelse(barrios_por_departamentos$departamento %in% top_10_departamentos$departamento, "#B22222", "grey")) +
+  labs(
+    x = "Departamentos",
+    y = "Cantidad de barrios",
+    title = "Cantidad de barrios por departamento",
+    subtitle = "Fuente: RENABAP 2022"
+  ) +
+  geom_text(aes(label = cantidad_barrios), hjust = 1.5, vjust = 0.2, color = "white", size = 2, fontface = "bold") +  # Establecer el texto en negrita
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),  
+        plot.subtitle = element_text(size = 10))
+
 # En síntesis, se agrupan los datos por el valor de la columna "departamento". Luego, se cuenta la cantidad de barrios populares en cada uno. Finalmente, se ordenan los resultados de manera descendente, para así poder extraer el top 10 de departamentos con mayor cantidad de BP. 
 
-# De este análisis, se extrae que los departamentos con mayor cantidad de BP son:
-
-print(top_10_departamentos)
+# A partir de este análisis, se constata que los departamentos con mayor cantidad de BP son San Fernando, La Matanza, La Plata, Moreno, Almirante Brown, Merlo, Florencio Varela, Quilmes, Tigre y Lomas de Zamora.
 
 # No obstante, si retomamos la información de cantidad de viviendas y familias, podremos observar que los departamentos con mayor cantidad de barrios no coinciden necesariamente con los que presentan mayor cantidad de viviendas:
 
-viviendas_por_departamento <- renabap_2022_amba %>%
+viviendas_y_familias_por_departamento <- renabap_2022_amba %>%
   group_by(departamento) %>%
-  summarise(total_viviendas = sum(cantidad_viviendas_aproximadas))
+  summarise(cantidad_barrios = n_distinct(nombre_barrio),
+            total_viviendas = sum(cantidad_viviendas_aproximadas),
+            total_familias = sum(cantidad_familias_aproximada))
 
-print(viviendas_por_departamento)
+# En el siguiente gráfico se puede observar la relación entre departamentos, cantidad de barrios, cantidad de viviendas y cantidad de familias:
 
-familias_por_departamento <- renabap_2022_amba %>%
-  group_by(departamento) %>%
-  summarise(total_familias = sum(cantidad_familias_aproximada))
+ggplot(viviendas_y_familias_por_departamento) +
+  aes(
+    x = cantidad_barrios,
+    y = departamento,
+    size = total_viviendas,
+    color = total_familias
+  ) +
+  geom_point(shape = 21, aes(fill = total_familias), alpha = 0.8) +  
+  scale_size_continuous(range = c(2, 10)) +  
+  scale_color_distiller(palette = "OrRd", direction = 1) +  
+  scale_fill_distiller(palette = "OrRd", direction = 1) +  
+  labs(
+    x = "Cantidad de barrios",
+    y = "Departamentos",
+    title = "Cantidad de barrios, viviendas y familias por departamento",
+    subtitle = "Fuente: RENABAP 2022",
+    size = "Cantidad de viviendas",
+    color = "Cantidad de familias",
+    fill = "Cantidad de familias"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),
+        plot.subtitle = element_text(size = 10))
 
-print(familias_por_departamento)
+# En ambos casos se puede observar que La Matanza, Lomas de Zamora y Quilmes cuentan con la mayor cantidad de viviendas y familias.
 
-# En ambos casos se puede observar que Almirante Brown, Avellaneda, Berazategui, Berisso, y Brandsen cuentan con la mayor cantidad de viviendas y familias.
+# Aclaración: se ha probado reproducir esta información utilizando geofacet*. Luego de varios intentos, se llegó a la conclusión de que debido a la diversidad de tamaños de los departamentos en el AMBA, la grilla espacial no ayuda a la visualización de la información, por lo cual se ha decidido descartar este método para representar los datos directamente en mapas coropléticos.
 
-# Cabe destacar que, de todos modos, el barrio popular con mayor cantidad de viviendas y familias es Santa Catalina en Lomas de Zamora, con 7850 viviendas aproximadas y 8635 familias.
+# *Aquí se puede visualizar la grilla fallida:
 
-renabap_2022_amba_top_10 <- renabap_2022_amba %>%
-  filter(departamento %in% c("San Fernando", "La Matanza", "La Plata", "Moreno", "Almirante Brown", "Merlo", "Florencio Varela", "Quilmes", "Tigre", "Lomas de Zamora"))%>%
-  arrange(desc(cantidad_viviendas_aproximadas))
+grilla_amba <- data.frame(
+  name = c("Campana", "Zárate", "Escobar", "Exaltación de la Cruz", "Tigre", "San Fernando", "San Isidro", "Vicente López", "Pilar", "Malvinas Argentinas", "San Miguel", "Hurlingham", "General San Martín", "CABA", "Avellaneda", "Berisso", "Ensenada", "Berazategui", "Quilmes", "Luján", "General Rodríguez", "José C. Paz", "Ituzaingó", "Morón", "Tres de Febrero", "La Matanza", "Lanús", "Moreno", "Merlo", "Almirante Brown", "Florencio Varela", "La Plata", "Ezeiza", "Lomas de Zamora", "Marcos Paz", "Cañuelas", "Esteban Echeverría", "Brandsen", "General Las Heras", "Presidente Perón", "San Vicente"),
+  code = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41),
+  row = c(1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 8),
+  col = c(2, 1, 2, 1, 3, 4, 5, 6, 2, 3, 4, 5, 6, 7, 8, 12, 11, 10, 9, 1, 2, 3, 4, 5, 6, 7, 8, 2, 6, 9, 10, 11, 7, 8, 6, 7, 8, 9, 6, 8, 8),
+  stringsAsFactors = FALSE
+)
 
-top_10_barrios <- head(renabap_2022_amba_top_10, 10)
+geofacet::grid_preview(grilla_amba)
 
-print(top_10_barrios)
+
+#6. Visualizar la información en mapas
+# A continuación, se instalan unas librerías adicionales para ayudar a la visualización de la información.
+
+#Sf
+install.packages("sf")
+library(sf)
+
+#GeoAr
+install.packages("geoAr")
+library(geoAr)
+
+# Se utiliza GeoAr para poder extraer la geometría del AMBA (nota: podría ser más directo utilizar un shapefile)
+
+# Se buscan los códigos de la Provincia de Buenos Aires y CABA, visualizando sus respectivos departamentos y combinándolos en una misma tabla.
+
+show_arg_codes()
+
+print(show_arg_codes(), n = 26)
+
+buenos_aires <- get_geo(geo = "BUENOS AIRES")
+
+(buenos_aires_departamentos <- buenos_aires %>%
+    add_geo_codes())
+
+caba <- get_geo(geo = "CABA")
+
+(caba_departamentos <- caba %>%
+    add_geo_codes())
+
+datos_combinados <- bind_rows(buenos_aires_departamentos, caba_departamentos)
+
+# Luego, se procede a transformar el listado de "departamentos_de_interes" para hacerlo compatible con los códigos de GeoAr. Se utiliza ese listado y el de las comunas de CABA para filtrar los polígonos de la geometría provista por GeoAr.
+
+quitar_tildes_y_mayusculas <- function(texto) {
+  texto <- iconv(texto, to = "ASCII//TRANSLIT")
+  texto <- toupper(texto)
+  return(texto)
+}
+
+departamentos_de_interes <- sapply(departamentos_de_interes, quitar_tildes_y_mayusculas)
+
+departamentos_de_interes_caba <- c("COMUNA 01", "COMUNA 02","COMUNA 03","COMUNA 04","COMUNA 05","COMUNA 06","COMUNA 07","COMUNA 08","COMUNA 09","COMUNA 10","COMUNA 11","COMUNA 12","COMUNA 13","COMUNA 14","COMUNA 15")
+
+datos_ba <- datos_combinados %>%
+  filter(nomdepto_censo %in% departamentos_de_interes)
+
+datos_caba <- datos_combinados %>%
+  filter(nomdepto_censo %in% departamentos_de_interes_caba)
+
+base_amba <- bind_rows(datos_ba, datos_caba)
+
+# Con estas operaciones se pueden observar los polígonos del AMBA.
+
+ggplot()+ 
+  geom_sf(data=base_amba)
+  
+base_amba <- base_amba %>%
+  rename(departamento = nomdepto_censo)
+
+# Para proceder a la visualización espacial de la información previamente estudiada, se transforman los datos de la columna "departamento" a fin de unirla con la base espacial del AMBA.
+
+viviendas_y_familias_por_departamento <- viviendas_y_familias_por_departamento %>%
+  mutate(departamento = toupper(chartr("ÁÉÍÓÚÑáéíóúñ", "AEIOUNaeioun", departamento)))
+
+
+union_tablas_para_visualizacion <- left_join(base_amba, viviendas_y_familias_por_departamento, by = "departamento")
+
+# Por último, se procede a visualizar los siguientes mapas:
+
+# 1. Cantidad de barrios por departamento: 
+ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=cantidad_barrios), color=
+                    "white"
+)+ labs(title =
+          "Cantidad de barrios populares por departamento"
+        , subtitle =
+          "Área Metropolitana de Buenos Aires"
+        , fill =
+          "Cantidad de barrios"
+        , caption=
+          "Fuente: RENABAP 2022"
+) + scale_fill_distiller(palette =
+                           "OrRd"
+                         , direction =
+                           1
+) + theme_minimal()
+
+
+# 2. Cantidad de viviendas por departamento: 
+ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_viviendas), color=
+                    "white"
+)+ labs(title =
+          "Cantidad de viviendas por departamento"
+        , subtitle =
+          "Área Metropolitana de Buenos Aires"
+        , fill =
+          "Cantidad de viviendas"
+        , caption=
+          "Fuente: RENABAP 2022"
+) + scale_fill_distiller(palette =
+                           "OrRd"
+                         , direction =
+                           1
+) + theme_minimal()
+
+
+# 3. Cantidad de barrios por departamento: 
+ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_familias), color=
+                    "white"
+)+ labs(title =
+          "Cantidad de familias por departamento"
+        , subtitle =
+          "Área Metropolitana de Buenos Aires"
+        , fill =
+          "Cantidad de familias"
+        , caption=
+          "Fuente: RENABAP 2022"
+) + scale_fill_distiller(palette =
+                           "OrRd"
+                         , direction =
+                           1
+) + theme_minimal()
