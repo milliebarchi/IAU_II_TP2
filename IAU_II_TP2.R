@@ -15,7 +15,7 @@ library(dplyr)
 install.packages("ggplot2")
 library(ggplot2)
 
-#Esquisse
+#Esquisse (se utilizó para el armado de las bases de los gráficos de barras y puntos)
 install.packages("esquisse")
 esquisse::esquisser()
 
@@ -43,7 +43,9 @@ departamentos_de_interes <- c("Almirante Brown", "Avellaneda", "Berazategui", "B
                               "José C. Paz", "La Matanza", "La Plata", "Lanús", "Lomas de Zamora", "Luján",
                               "Malvinas Argentinas", "Marcos Paz", "Merlo", "Moreno", "Morón", "Quilmes", "Pilar",
                               "Presidente Perón", "San Fernando", "San Isidro", "San Miguel", "San Vicente", "Tigre",
-                              "Tres de Febrero", "Vicente López", "Zárate")
+                              "Tres de Febrero", "Vicente López", "Zárate", "Comuna 1", "Comuna 2", "Comuna 3", "Comuna 4", "Comuna 5",
+                              "Comuna 6", "Comuna 7", "Comuna 8", "Comuna 9", "Comuna 10", "Comuna 11", "Comuna 12", "Comuna 13",
+                              "Comuna 14", "Comuna 15")
 
 columnas_de_interes <- c("departamento", "nombre_barrio", "cantidad_viviendas_aproximadas", 
                          "cantidad_familias_aproximada")
@@ -56,7 +58,7 @@ summary(renabap_2022_amba)
 
 # En el TP1, con estas primeras operaciones se pudo responder la primera pregunta (¿cuántos barrios populares se encuentran en el Área Metropolitana de Buenos Aires y, en promedio, cuántas viviendas y familias contienen?).
 
-# Se observaron 1771 barrios populares existentes en el AMBA, que en promedio cuentan con 280 viviendas y 309 familias. 
+# Se observaron 1821 barrios populares existentes en el AMBA, que en promedio cuentan con 314 viviendas y 345 familias. 
 
 
 #5. Agrupar y contar información
@@ -124,9 +126,9 @@ ggplot(viviendas_y_familias_por_departamento) +
   theme(axis.text.x = element_text(size = 8),
         plot.subtitle = element_text(size = 10))
 
-# En ambos casos se puede observar que La Matanza, Lomas de Zamora y Quilmes cuentan con la mayor cantidad de viviendas y familias.
+# En ambos casos se puede observar que La Matanza, Lomas de Zamora y Quilmes cuentan con la mayor cantidad de viviendas y familias. Resulta de interés que la Comuna 8 en CABA, si bien cuenta con una cantidad menor de BP (18), le sigue a los departamentos mencionados en cantidad de familias y viviendas.
 
-# Aclaración: se ha probado reproducir esta información utilizando geofacet*. Luego de varios intentos, se llegó a la conclusión de que debido a la diversidad de tamaños de los departamentos en el AMBA, la grilla espacial no ayuda a la visualización de la información, por lo cual se ha decidido descartar este método para representar los datos directamente en mapas coropléticos.
+# Aclaración: se ha probado reproducir esta información utilizando geofacet*. Luego de varios intentos, se llegó a la conclusión de que debido a la diversidad de tamaños y la intrincada distribución de los departamentos en el AMBA, la grilla espacial no ayuda a la visualización de la información, por lo cual se ha decidido descartar este método para representar los datos directamente en mapas coropléticos.
 
 # *Aquí se puede visualizar la grilla fallida:
 
@@ -170,27 +172,17 @@ caba <- get_geo(geo = "CABA")
 (caba_departamentos <- caba %>%
     add_geo_codes())
 
-datos_combinados <- bind_rows(buenos_aires_departamentos, caba_departamentos)
+datos_combinados_amba <- bind_rows(buenos_aires_departamentos, caba_departamentos)
 
 # Luego, se procede a transformar el listado de "departamentos_de_interes" para hacerlo compatible con los códigos de GeoAr. Se utiliza ese listado y el de las comunas de CABA para filtrar los polígonos de la geometría provista por GeoAr.
 
-quitar_tildes_y_mayusculas <- function(texto) {
-  texto <- iconv(texto, to = "ASCII//TRANSLIT")
-  texto <- toupper(texto)
-  return(texto)
-}
+departamentos_de_interes <- sapply(departamentos_de_interes, function(x) toupper(chartr("áéíóúñ", "AEIOUN", x)))
 
-departamentos_de_interes <- sapply(departamentos_de_interes, quitar_tildes_y_mayusculas)
+datos_combinados_amba <- datos_combinados_amba %>%
+  mutate(nomdepto_censo = gsub("\\b0+(\\d+)", "\\1", nomdepto_censo))
 
-departamentos_de_interes_caba <- c("COMUNA 01", "COMUNA 02","COMUNA 03","COMUNA 04","COMUNA 05","COMUNA 06","COMUNA 07","COMUNA 08","COMUNA 09","COMUNA 10","COMUNA 11","COMUNA 12","COMUNA 13","COMUNA 14","COMUNA 15")
-
-datos_ba <- datos_combinados %>%
+base_amba <- datos_combinados_amba %>%
   filter(nomdepto_censo %in% departamentos_de_interes)
-
-datos_caba <- datos_combinados %>%
-  filter(nomdepto_censo %in% departamentos_de_interes_caba)
-
-base_amba <- bind_rows(datos_ba, datos_caba)
 
 # Con estas operaciones se pueden observar los polígonos del AMBA.
 
@@ -262,3 +254,5 @@ ggplot()+ geom_sf(data=union_tablas_para_visualizacion, aes(fill=total_familias)
                          , direction =
                            1
 ) + theme_minimal()
+
+# En primer lugar, estos mapas permiten observar que no hay un patrón uniforme en la distribución de barrios, hogares y familias, pero sí se puede observar menores valores en CABA, con excepción al sur de la ciudad. Por otro lado, los mapas permiten observar que hay 8 departamentos que no cuentan con BP (los polígonos grises), a saber: Ezeiza, General Las Heras, y dentro de CABA, las Comunas 3, 5, 10, 11, 12 y 13.
